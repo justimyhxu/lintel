@@ -591,6 +591,8 @@ decode_video_from_frame_nums(uint8_t *dest,
                 assert(status == VID_DECODE_SUCCESS);
 
                 current_frame_index = vid_ctx->frame->pts/avg_frame_duration;
+                if (current_frame_index > frame_numbers[0])
+                        current_frame_index = frame_numbers[0];
                 assert(current_frame_index <= frame_numbers[0]);
 
                 /**

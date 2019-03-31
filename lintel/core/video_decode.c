@@ -527,7 +527,8 @@ decode_video_from_frame_nums(uint8_t *dest,
                              struct video_stream_context *vid_ctx,
                              int32_t num_requested_frames,
                              const int32_t *frame_numbers,
-                             bool should_seek)
+                             bool should_seek,
+                             bool use_frame)
 {
         if (num_requested_frames <= 0)
                 return;
@@ -555,6 +556,11 @@ decode_video_from_frame_nums(uint8_t *dest,
         int32_t current_frame_index = 0;
         int32_t out_frame_index = 0;
         int64_t prev_pts = 0;
+
+        //TODO
+        AVStream *video_stream =
+                vid_ctx->format_context->streams[vid_ctx->video_stream_index];
+
         if (should_seek) {
                 /**
                  * NOTE(brendan): Convert from frame number to video stream
@@ -563,7 +569,14 @@ decode_video_from_frame_nums(uint8_t *dest,
                  */
                 int32_t avg_frame_duration = (vid_ctx->duration /
                                               vid_ctx->nb_frames);
-                int64_t timestamp = frame_numbers[0]*avg_frame_duration;
+//                printf('duration %d, nb_frames %d',vid_ctx->duration,vid_ctx->nb_frames);
+                int64_t timestamp;
+                if (use_frame){
+                     timestamp = frame_numbers[0]*avg_frame_duration;
+                    }
+                else{
+                    timestamp = frame_numbers[0]*1000;
+                    }
                 status = av_seek_frame(vid_ctx->format_context,
                                        vid_ctx->video_stream_index,
                                        timestamp,
@@ -590,10 +603,23 @@ decode_video_from_frame_nums(uint8_t *dest,
                         goto out_free_frame_rgb_and_sws;
                 assert(status == VID_DECODE_SUCCESS);
 
-                current_frame_index = vid_ctx->frame->pts/avg_frame_duration;
-                if (current_frame_index > frame_numbers[0])
-                        current_frame_index = frame_numbers[0];
+                if (use_frame){
+                    current_frame_index = vid_ctx->frame->pts/avg_frame_duration;
+                    if (current_frame_index > frame_numbers[0])
+                            current_frame_index = frame_numbers[0];
+                            }
+                else{
+                    current_frame_index = vid_ctx->frame->pts;
+                    current_frame_index = current_frame_index / 1000;
+                }
+
+
+//                printf("current_frame_index -->> %d\n", current_frame_index);
+//                printf("frame_numbers[0] -->> %d\n", frame_numbers[0]);
+
                 assert(current_frame_index <= frame_numbers[0]);
+//                printf("current_frame_index -->> %d\n", current_frame_index);
+//                printf("frame_numbers[0] -->> %d\n", frame_numbers[0]);
 
                 /**
                  * NOTE(brendan): Handle the chance that the seek brought the
@@ -630,9 +656,22 @@ decode_video_from_frame_nums(uint8_t *dest,
                                            num_requested_frames);
                         goto out_free_frame_rgb_and_sws;
                 }
+                if (use_frame){
+                     while (current_frame_index <= desired_frame_num) {
+//                        if (current_frame_index == desired_frame_num){
+//                        printf("current_frame")
+//                        printf("1->> vid_ctx->frame->pts, %d \n",  vid_ctx->frame->pts);
+////                        printf("2->> vid_ctx->frame->pkt_dts, %d \n",  vid_ctx->frame->pkt_dts);
+////                        printf("3->> vid_ctx->frame->pkt_pts, %d \n",  vid_ctx->frame->pkt_pts);
+//                        printf("4->> video_steam->time_base.num, %d \n",  video_stream->time_base.num);
+//                        printf("5->> video_steam->time_base.den, %d \n",  video_stream->time_base.den);
+////                        printf("6->> video_steam->cur_dts, %d \n",  video_stream->cur_dts);
+//                        }
+//                        int64_t tb_num = video_stream->time_base.num;
+//        int64_t tb_den = video_stream->time_base.den;
 
-                while (current_frame_index <= desired_frame_num) {
                         status = receive_frame(vid_ctx);
+//                        printf("2->> vid_ctx->frame->pts, %d \n",  vid_ctx->frame->pts);
                         if (status == VID_DECODE_EOF) {
                                 loop_to_buffer_end(dest,
                                                    copied_bytes,
@@ -649,10 +688,50 @@ decode_video_from_frame_nums(uint8_t *dest,
                          * frame's PTS. This is to workaround an FFmpeg oddity
                          * where the first frame decoded gets duplicated.
                          */
+//                        printf("3->> vid_ctx->frame->pts, %d \n",  vid_ctx->frame->pts);
                         if (vid_ctx->frame->pts > prev_pts) {
                                 ++current_frame_index;
                                 prev_pts = vid_ctx->frame->pts;
                         }
+//                        printf("4->> vid_ctx->frame->pts, %d \n",  vid_ctx->frame->pts);
+                }
+                }
+                else{
+                while (vid_ctx->frame->pts <= desired_frame_num*1000) {
+//                        printf("1->> vid_ctx->frame->pts, %d \n",  vid_ctx->frame->pts);
+//                        printf("2->> vid_ctx->frame->pkt_dts, %d \n",  vid_ctx->frame->pkt_dts);
+//                        printf("3->> vid_ctx->frame->pkt_pts, %d \n",  vid_ctx->frame->pkt_pts);
+//                        printf("4->> video_steam->time_base.num, %d \n",  video_stream->time_base.num);
+//                        printf("5->> video_steam->time_base.den, %d \n",  video_stream->time_base.den);
+//                        printf("6->> video_steam->cur_dts, %d \n",  video_stream->cur_dts);
+//                        int64_t tb_num = video_stream->time_base.num;
+//        int64_t tb_den = video_stream->time_base.den;
+
+                        status = receive_frame(vid_ctx);
+//                        printf("2->> vid_ctx->frame->pts, %d \n",  vid_ctx->frame->pts);
+                        if (status == VID_DECODE_EOF) {
+                                loop_to_buffer_end(dest,
+                                                   copied_bytes,
+                                                   out_frame_index,
+                                                   bytes_per_frame,
+                                                   num_requested_frames);
+                                goto out_free_frame_rgb_and_sws;
+                        }
+                        assert(status == VID_DECODE_SUCCESS);
+
+                        /**
+                         * NOTE(brendan): Only advance the frame index if the
+                         * current frame's PTS is greater than the previous
+                         * frame's PTS. This is to workaround an FFmpeg oddity
+                         * where the first frame decoded gets duplicated.
+                         */
+//                        printf("3->> vid_ctx->frame->pts, %d \n",  vid_ctx->frame->pts);
+                        if (vid_ctx->frame->pts > prev_pts) {
+//                                ++current_frame_index;
+                                prev_pts = vid_ctx->frame->pts;
+                        }
+//                        printf("4->> vid_ctx->frame->pts, %d \n",  vid_ctx->frame->pts);
+                }
                 }
 
                 copied_bytes = copy_next_frame(dest,

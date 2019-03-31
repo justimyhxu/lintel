@@ -258,19 +258,21 @@ loadvid_frame_nums(PyObject *UNUSED(dummy), PyObject *args, PyObject *kw)
         uint32_t height = 0;
         /* NOTE(brendan): should_seek must be int (not bool) because Python. */
         int32_t should_seek = 0;
+        int32_t use_frame = 0;
         static char *kwlist[] = {"encoded_video",
                                  "frame_nums",
                                  "width",
                                  "height",
                                  "should_seek",
+                                 "use_frame",
                                  0};
 
         if (!PyArg_ParseTupleAndKeywords(args,
                                          kw,
 #if PY_MAJOR_VERSION >= 3
-                                         "y#|$OIIi:loadvid_frame_nums",
+                                         "y#|$OIIii:loadvid_frame_nums",
 #else
-                                         "s#|OIIi:loadvid_frame_nums",
+                                         "s#|OIIii:loadvid_frame_nums",
 #endif
                                          kwlist,
                                          &video_bytes,
@@ -278,7 +280,8 @@ loadvid_frame_nums(PyObject *UNUSED(dummy), PyObject *args, PyObject *kw)
                                          &frame_nums,
                                          &width,
                                          &height,
-                                         &should_seek))
+                                         &should_seek,
+                                         &use_frame))
                 return NULL;
 
         if (!PySequence_Check(frame_nums)) {
@@ -344,7 +347,8 @@ loadvid_frame_nums(PyObject *UNUSED(dummy), PyObject *args, PyObject *kw)
                                      &vid_ctx,
                                      num_frames,
                                      frame_nums_buf,
-                                     should_seek != 0);
+                                     should_seek != 0,
+                                     use_frame != 0);
 #if PY_MAJOR_VERSION >= 3
         PyMem_RawFree(frame_nums_buf);
 #else

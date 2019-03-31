@@ -203,6 +203,7 @@ decode_video_from_frame_nums(uint8_t *dest,
                              struct video_stream_context *vid_ctx,
                              int32_t num_requested_frames,
                              const int32_t *frame_numbers,
-                             bool should_seek);
+                             bool should_seek,
+                             bool use_frame);
 
 #endif // _VIDEO_DECODE_H_

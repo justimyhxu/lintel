@@ -560,7 +560,10 @@ decode_video_from_frame_nums(uint8_t *dest,
         //TODO
         AVStream *video_stream =
                 vid_ctx->format_context->streams[vid_ctx->video_stream_index];
+        printf("4->> video_steam->time_base.num, %d \n",  video_stream->time_base.num);
+        printf("5->> video_steam->time_base.den, %d \n",  video_stream->time_base.den);
 
+        int32_t time_unit =  video_stream->time_base.den / video_stream->time_base.num;
         if (should_seek) {
                 /**
                  * NOTE(brendan): Convert from frame number to video stream
@@ -575,7 +578,7 @@ decode_video_from_frame_nums(uint8_t *dest,
                      timestamp = frame_numbers[0]*avg_frame_duration;
                     }
                 else{
-                    timestamp = frame_numbers[0]*1000;
+                    timestamp = frame_numbers[0]*time_unit;
                     }
                 status = av_seek_frame(vid_ctx->format_context,
                                        vid_ctx->video_stream_index,
@@ -610,7 +613,7 @@ decode_video_from_frame_nums(uint8_t *dest,
                             }
                 else{
                     current_frame_index = vid_ctx->frame->pts;
-                    current_frame_index = current_frame_index / 1000;
+                    current_frame_index = current_frame_index / time_unit;
                 }
 
 
@@ -697,7 +700,7 @@ decode_video_from_frame_nums(uint8_t *dest,
                 }
                 }
                 else{
-                while (vid_ctx->frame->pts <= desired_frame_num*1000) {
+                while (vid_ctx->frame->pts <= desired_frame_num*time_unit) {
 //                        printf("1->> vid_ctx->frame->pts, %d \n",  vid_ctx->frame->pts);
 //                        printf("2->> vid_ctx->frame->pkt_dts, %d \n",  vid_ctx->frame->pkt_dts);
 //                        printf("3->> vid_ctx->frame->pkt_pts, %d \n",  vid_ctx->frame->pkt_pts);

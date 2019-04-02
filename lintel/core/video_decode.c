@@ -560,8 +560,8 @@ decode_video_from_frame_nums(uint8_t *dest,
         //TODO
         AVStream *video_stream =
                 vid_ctx->format_context->streams[vid_ctx->video_stream_index];
-        printf("4->> video_steam->time_base.num, %d \n",  video_stream->time_base.num);
-        printf("5->> video_steam->time_base.den, %d \n",  video_stream->time_base.den);
+//        printf("4->> video_steam->time_base.num, %d \n",  video_stream->time_base.num);
+//        printf("5->> video_steam->time_base.den, %d \n",  video_stream->time_base.den);
 
         int32_t time_unit =  video_stream->time_base.den / video_stream->time_base.num;
         if (should_seek) {
